@@ -17,6 +17,7 @@ create table laboratoris (
     constraint pk_laboratoris primary key (codi),
     constraint fk_laboratoris_paisos foreign key (pais) references paisos (nom)
 ) engine = innodb;
+
 create table empleats (
     num_pass varchar(9) not null,
     nom varchar(10) not null,
@@ -74,7 +75,6 @@ create table assignacions(
     constraint fk_assignacions_zones_biocontencio foreign key (zona,lab) references zones_biocontencio(codi,codiLab)
 ) engine = innodb;
 
--- test checks
 insert into paisos(nom,pot_desenv,tractat_signat) values ('Espanya',10,'S'); -- test for ck_tractat
 
 insert into laboratoris(codi,nom,pais) values (00001, 'Lab01','Espanya');
@@ -82,5 +82,41 @@ insert into empleats(num_pass,nom) values ('12345','Gabriel');
 insert into qualificats(num_pass,titulacio,zona_assignada,lab)values('12345','Medicina',null,null);
 insert into zones_biocontencio(codi,codiLab,nivell,responsable) values (00000,00001,'A','12345');--check for ck_nivell
 update qualificats set zona_assignada=00000, lab = 00001 where num_pass = '12345';
-
 insert into armes_biologiques(nom,fecha,potencial,zona,lab) values ('Arma1','2022-05-28',8,00000,00001); --check for potencial
+
+--3
+select l.codi,l.nom 
+from laboratoris as l, zones_biocontencio as z 
+where z.codiLab= l.codi AND z.nivell='A'
+order by l.nom asc;
+
+--4
+insert into empleats(num_pass,nom) values('23456','Josep');
+insert into ordinaris(num_pass) values ('23456');
+insert into assignacions(fecha,empl_ord,zona,lab,data_fi) values ('2022-05-20','23456',00000,00001,'2022-05-28');
+select e.nom 
+from empleats as e,ordinaris as o
+where e.num_pass=o.num_pass AND o.num_pass not in (select a.empl_ord 
+                            from assignacions as a,zones_biocontencio as z 
+                            where a.zona = z.codi AND z.nivell='A');
+
+--5
+insert into empleats(num_pass,nom) values ('34567','Maria');
+insert into qualificats(num_pass,titulacio,zona_assignada,lab)values('34567','Biologia',00000,00001);
+insert into empleats(num_pass,nom) values ('45678','Sonia');
+insert into qualificats(num_pass,titulacio,zona_assignada,lab)values('45678','Microbiologia',00000,00001);
+insert into empleats(num_pass,nom) values ('56789','Alex');
+insert into qualificats(num_pass,titulacio,zona_assignada,lab)values('56789','Quimica',00000,00001);
+select z.codi,l.nom
+from zones_biocontencio as z, laboratoris as l
+where z.codiLab=l.codi AND 3<  (select COUNT(q.zona_assignada)
+                                from qualificats as q
+                                where z.codi=q.zona_assignada and z.codiLab=q.lab)
+order by l.codi, z.codi;
+
+--6
+select o.*
+from ordinaris as o,assignacions as a
+where o.num_pass = a.empl_ord and o.num_pass in (select a.empl_ord 
+                                                     from laboratoris as l,zones_biocontencio as z
+                                                     where l.codi = z.codiLab and l.nom='BCN-XXX');
